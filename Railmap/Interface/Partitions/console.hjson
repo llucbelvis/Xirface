@@ -1,0 +1,99 @@
+{
+  type: "frame"
+  position: [0, 0]
+  origin: [0, 0]
+  size: [1920, 1080]
+  depth: 0
+  fillColor: [0,0,0,0]
+
+  id : "Console"
+
+  children: [ 
+    {
+        type: "text"
+        id : "Console_0"
+        position: [10, 1065]
+        origin: [0, 0]
+        size: [10, 200]
+        depth: 0
+        fillColor: [255,0,255,255]
+        content: "-"
+        alignment: "left-center"
+        font: "Regular"
+        fontSize: 15
+        children: []      
+    }
+
+    {
+        type: "text"
+        id : "Console_1"
+        position: [10, 1050]
+        origin: [0, 0]
+        size: [10, 200]
+        depth: 0
+        fillColor: [255,0,255,255]
+        content: "-"
+        alignment: "left-center"
+        font: "Regular"
+        fontSize: 15
+        children: []      
+    }
+
+    {
+        type: "text"
+        id : "Console_2"
+        position: [10, 1035]
+        origin: [0, 0]
+        size: [10, 200]
+        depth: 0
+        fillColor: [255,0,255,255]
+        content: "-"
+        alignment: "left-center"
+        font: "Regular"
+        fontSize: 15
+        children: []      
+    }
+    {
+        type: "text"
+        id : "Console_3"
+        position: [10, 1020]
+        origin: [0, 0]
+        size: [10, 200]
+        depth: 0
+        fillColor: [255,0,255,255]
+        content: "-"
+        alignment: "left-center"
+        font: "Regular"
+        fontSize: 15
+        children: []      
+    }
+    {
+        type: "text"
+        id : "Console_4"
+        position: [10, 1005]
+        origin: [0, 0]
+        size: [10, 200]
+        depth: 0
+        fillColor: [255,0,255,255]
+        content: "-"
+        alignment: "left-center"
+        font: "Regular"
+        fontSize: 15
+        children: []      
+    }
+    {
+        type: "text"
+        id : "Console_5"
+        position: [10, 990]
+        origin: [0, 0]
+        size: [10, 200]
+        depth: 0
+        fillColor: [255,0,255,255]
+        content: "-"
+        alignment: "left-center"
+        font: "Regular"
+        fontSize: 15
+        children: []      
+    }
+  ]
+}
