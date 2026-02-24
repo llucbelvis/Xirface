@@ -26,6 +26,7 @@
 		<PackageReference Include="Hjson" Version="3.0.0" />
 		<PackageReference Include="Silk.NET.Input" Version="2.23.0" />
 		<PackageReference Include="Silk.NET.OpenGL" Version="2.23.0" />
+		<PackageReference Include="Silk.NET.SPIRV.Cross" Version="2.23.0" />
 		<PackageReference Include="Silk.NET.Vulkan" Version="2.23.0" />
 		<PackageReference Include="Silk.NET.Vulkan.Extensions.KHR" Version="2.23.0" />
 		<PackageReference Include="Silk.NET.Windowing" Version="2.23.0" />
@@ -53,12 +54,6 @@
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
 		<None Update="Fonts\SemiBold.ttf">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</None>
-		<None Update="Railmap\Interface\Partitions\console.hjson">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</None>
-		<None Update="Railmap\Interface\Partitions\rightbar.hjson">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
 		<None Update="textures\build.png">

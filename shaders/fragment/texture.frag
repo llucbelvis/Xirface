@@ -6,7 +6,7 @@ layout(location = 1) in vec4 inColor;
 
 layout(location = 0) out vec4 outColor;
 
-layout(set = 1, binding = 0) uniform sampler2D Sampler0;
+layout(set = 0, binding = 1) uniform sampler2D Sampler0;
 
 void main() {
     outColor = texture(Sampler0, inCoords) * inColor;

@@ -12,8 +12,8 @@ namespace Xirface
     {
         private IMouse IMouse;
 
-        public HashSet<MouseButton> current;
-        public HashSet<MouseButton> previous;
+        public HashSet<MouseButton>? current;
+        public HashSet<MouseButton>? previous;
 
         public Vector2 Position;
 
@@ -30,13 +30,13 @@ namespace Xirface
 
             foreach (MouseButton button in Enum.GetValues<MouseButton>())
             {
-                if (IMouse.IsButtonPressed(button)) current.Add(button);
+                if (IMouse.IsButtonPressed(button)) current!.Add(button);
             }
         }
 
-        public bool Clicked(MouseButton b) => current.Contains(b) && !previous.Contains(b);
-        public bool Canceled(MouseButton b) => !current.Contains(b) && !previous.Contains(b);
-        public bool Pressed(MouseButton b) => current.Contains(b);
+        public bool Clicked(MouseButton b) => current!.Contains(b) && !previous!.Contains(b);
+        public bool Canceled(MouseButton b) => !current!.Contains(b) && !previous!.Contains(b);
+        public bool Pressed(MouseButton b) => current!.Contains(b);
 
         public void OnDown(Action<MouseButton> action) => IMouse.MouseDown += (m,b) => action(b);
         public void OnUp(Action<MouseButton> action) => IMouse.MouseUp += (m,b) => action(b);

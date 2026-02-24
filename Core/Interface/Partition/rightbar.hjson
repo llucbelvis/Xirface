@@ -1,0 +1,313 @@
+{
+  type: "frame"
+  id : "Root"
+  position: [0, 0]
+  origin: [0, 0]
+  size: [1920, 1080]
+  depth: 0
+  fillColor: [250,250,250,255]
+
+  children: [ 
+    {
+      type: "frame"
+      id : "RightBar_Frame"
+      position: [1670, 0]
+      origin: [0, 0]
+      size: [250, 1080]
+      depth: 0
+      fillColor: [44,44,44,255]
+      children: [
+        {
+          type: "frame"
+          id : "RightBar_Divider0"
+          position: [0, 1079]
+          origin: [0, 0]
+          size: [250, 1]
+          depth: 0
+          fillColor: [68,68,68,255]
+          children: []
+        }
+        
+
+        {
+          type: "frame"
+          id : "RightBar_Divider1"
+          position: [0, 1038]
+          origin: [0, 0]
+          size: [250, 1]
+          depth: 0
+          fillColor: [68,68,68,255]
+          children: []
+        }
+
+        {
+              type: "text"
+              id : "Zoom_Text"
+              position: [190, 1050]
+              origin: [0, 0]
+              size: [50, 20]
+              depth: 0
+              fillColor: [255,255,255,255]
+              content: "100%"
+              alignment: "center-right"
+              font: "Medium"
+              fontSize: 12
+              children: []
+        } 
+
+        {
+          type: "frame"
+          id : "Search_TextBox"
+          position: [40, 1013]
+          origin: [0, 0]
+          size: [175, 12]
+          depth: 0
+          fillColor: [64,64,64,255]
+          curve: 5
+
+          children: [
+            {
+              type: "textbox"
+              id : "Search_Text"
+              position: [5, 2]
+              origin: [0, 0]
+              size: [185, 22]
+              depth: 0
+              fillColor: [255,255,255,255]
+              content: "..."
+              alignment: "bottom-left"
+              font: "Regular"
+              fontSize: 12
+              actions: {}
+              children: []
+            }
+
+            {
+              type: "texture"
+              id : "Search_SearchTexture"
+              position: [-30, -3]
+              origin: [0, 0]
+              size: [0.15, 0.15]
+              depth: 0
+              fillColor: [255,255,255,255]
+              texture2d: "textures/search"
+              actions: {}
+              children: []
+            }
+
+            {
+              type: "texture"
+              id : "Search_CrossTexture"
+              position: [190, 1]
+              origin: [0, 0]
+              size: [0.1, 0.1]
+              depth: 0
+              fillColor: [255,255,255,255]
+              texture2d: "textures/cross"
+              actions: {}
+              children: []
+            }
+          ]
+        }
+        
+        {
+          type: "frame"
+          id: "Line_Template"
+          position: [0, 968]
+          origin: [0, 0]
+          size: [250, 35]
+          depth: 0
+          fillColor: [0, 0, 0, 0]
+          curve: 0
+
+          children: [
+
+            {
+              type: "frame"
+              id: "Logo"
+              position: [10, 5]
+              origin: [0, 0]
+              size: [25, 25]
+              depth: 0
+              fillColor: [0, 175, 221, 255]
+              curve: 0
+  
+              children: []
+            }
+
+            {
+              type: "textbox"
+              id: "Prefix"
+              position: [10, 5]
+              origin: [0, 0]
+              size: [25, 25]
+              depth: 0
+              fillColor: [255, 255, 255, 255]
+              content: "A"
+              alignment: "center-center"
+              font: "SemiBold"
+              fontSize: 20
+              children: []
+            }
+
+            {
+              type: "textbox"
+              id: "Name"
+              position: [45, 5]
+              origin: [0, 0]
+              size: [80, 25]
+              depth: 0
+              fillColor: [255, 255, 255, 255]
+              content: "Line A"
+              alignment: "center-left"
+              font: "SemiBold"
+              fontSize: 16
+              children: []
+            }
+
+            {
+              type: "textbox"
+              id: "Length"
+              position: [170, 5]
+              origin: [0, 0]
+              size: [50, 25]
+              depth: 0
+              fillColor: [255, 255, 255, 255]
+              content: "18 km"
+              alignment: "center-right"
+              font: "SemiBold"
+              fontSize: 12
+              children: []
+            }
+
+            {
+              type: "texture"
+              id: "Cancel"
+              position: [230, 10]
+              origin: [0, 0]
+              size: [0.1, 0.1]
+              depth: 0
+              fillColor: [255, 255, 255, 255]
+              texture2d: "textures/cross"
+              children: []
+            }
+          ]
+        }
+        
+        {
+          type: "frame"
+          id : "Lines_Root"
+          position: [0, 623]
+          origin: [0, 0]
+          size: [250, 380]
+          depth: 0
+          fillColor: [0,0,0,0]
+          curve: 0
+          children: []
+        }
+
+        {
+          type: "frame"
+          id : "Lines_Button"
+          position: [15, 1053]
+          origin: [0, 0]
+          size: [61, 12]
+          depth: 0
+          fillColor: [64,64,64,255]
+          curve: 5
+
+          children: [
+            {
+              type: "texture"
+              id : "Lines_Button_Texture"
+              position: [5, 1]
+              origin: [0, 0]
+              size: [0.1, 0.1]
+              depth: 0
+              fillColor: [255,255,255,255]
+              texture2d: "textures/lines"
+              children: []
+            }
+
+            {
+              type: "text"
+              id : "Lines_Button_Text"
+              position: [26, -3]
+              origin: [0, 0]
+              size: [30, 20]
+              depth: 0
+              fillColor: [255,255,255,255]
+              content: "Lines"
+              alignment: "center-left"
+              font: "Medium"
+              fontSize: 12
+              children: []
+            }
+
+            {
+              type: "frame"
+              id : "Lines_Button_Divider"
+              position: [20, 0]
+              origin: [0, 0]
+              size: [1, 12]
+              depth: 0
+              fillColor: [255,255,255,255]
+              children: []
+            }
+          ]
+        }
+
+        {
+          type: "frame"
+          id : "Trains_Button"
+          position: [93, 1053]
+          origin: [0, 0]
+          size: [61, 12]
+          depth: 0
+          fillColor: [0,0,0,0]
+          curve: 5 
+
+          children: [
+            {
+              type: "texture"
+              id : "Trains_Button_Texture"
+              position: [5, 1]
+              origin: [0, 0]
+              size: [0.1, 0.1]
+              depth: 0
+              fillColor: [174,174,174,255]
+              texture2d: "textures/trains"
+              children: []
+            }
+
+            {
+              type: "text"
+              id : "Trains_Button_Text"
+              position: [26, -3]
+              origin: [0, 0]
+              size: [30, 20]
+              depth: 0
+              fillColor: [174,174,174,255]
+              content: "Trains"
+              alignment: "center-left"
+              font: "Medium"
+              fontSize: 12
+              children: []
+            }
+
+            {
+              type: "frame"
+              id : "Trains_Button_Divider"
+              position: [20, 0]
+              origin: [0, 0]
+              size: [1, 12]
+              depth: 0
+              fillColor: [174,174,174,255]
+              children: []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
