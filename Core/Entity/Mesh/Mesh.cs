@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Numerics;
+﻿using System.Numerics;
 using Silk.NET.Vulkan;
 
 namespace Xirface
@@ -79,7 +75,7 @@ namespace Xirface
 
             void* mapped;
 
-            graphics.Vulkan.MapMemory(graphics.Device, stagingMemory, 0, size, 0, &mapped);
+            graphics.Vulkan!.MapMemory(graphics.Device, stagingMemory, 0, size, 0, &mapped);
             fixed (T* verticesPtr = data)
             {
                 System.Buffer.MemoryCopy(verticesPtr, mapped, size, size);

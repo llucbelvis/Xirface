@@ -1,14 +1,8 @@
-﻿using Silk.NET.OpenGL;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
-using System.Linq;
-using System.Numerics;
+﻿using System.Numerics;
 
 namespace Xirface
 {
-    public partial class Mesh<TVertex> where TVertex : unmanaged, IVertex
+    public partial class Mesh
     {
         public static Mesh<VertexPositionColor> Sphere(float rad, int iterations, Color color)
         {

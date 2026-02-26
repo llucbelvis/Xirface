@@ -3,10 +3,7 @@ using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.KHR;
 using Silk.NET.Windowing;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Text;
 
 namespace Xirface
 {
@@ -25,8 +22,13 @@ namespace Xirface
         public SwapchainKHR Swapchain;
         public Format SwapchainFormat;
         public Extent2D SwapchainExtent;
+
         public Image[]? SwapchainImages;
         public ImageView[]? SwapchainImageViews;
+
+        public Image depthImage;
+        public ImageView depthImageView;
+        public DeviceMemory depthMemory;
 
         public RenderPass RenderPass;
         public Framebuffer[]? Framebuffers;
@@ -63,7 +65,9 @@ namespace Xirface
 
             VerifyPhysicalDeviceSurfaceSupport();
 
-            (SwapchainFormat,SwapchainExtent, Swapchain, SwapchainImages, SwapchainImageViews) = CreateSwapchain(window);
+            (SwapchainFormat, SwapchainExtent, Swapchain, SwapchainImages, SwapchainImageViews) = CreateSwapchain(window);
+
+            (depthImage, depthImageView, depthMemory) = CreateDepth();
 
             RenderPass = CreateRenderPass();
 
@@ -383,37 +387,61 @@ namespace Xirface
                 Layout = ImageLayout.ColorAttachmentOptimal,
             };
 
+            AttachmentDescription depthAttachment = new()
+            {
+                Format = Format.D32Sfloat,
+                Samples = SampleCountFlags.Count1Bit,
+                LoadOp = AttachmentLoadOp.Clear,
+                StoreOp = AttachmentStoreOp.DontCare,
+                StencilLoadOp = AttachmentLoadOp.DontCare,
+                StencilStoreOp = AttachmentStoreOp.DontCare,
+                InitialLayout = ImageLayout.Undefined,
+                FinalLayout = ImageLayout.DepthStencilAttachmentOptimal,
+            };
+
+            AttachmentReference depthAttachmentReference = new()
+            {
+                Attachment = 1,
+                Layout = ImageLayout.DepthStencilAttachmentOptimal,
+            };
+
             SubpassDescription subpass = new()
             {
                 PipelineBindPoint = PipelineBindPoint.Graphics,
                 ColorAttachmentCount = 1,
                 PColorAttachments = &colorAttachmentReference,
+                PDepthStencilAttachment = &depthAttachmentReference,
             };
 
             SubpassDependency dependency = new()
             {
                 SrcSubpass = Vk.SubpassExternal,
                 DstSubpass = 0,
-                SrcStageMask = PipelineStageFlags.ColorAttachmentOutputBit,
+                SrcStageMask = PipelineStageFlags.ColorAttachmentOutputBit | PipelineStageFlags.EarlyFragmentTestsBit,
                 SrcAccessMask = 0,
-                DstStageMask = PipelineStageFlags.ColorAttachmentOutputBit,
-                DstAccessMask = AccessFlags.ColorAttachmentWriteBit,
+                DstStageMask = PipelineStageFlags.ColorAttachmentOutputBit | PipelineStageFlags.EarlyFragmentTestsBit,
+                DstAccessMask = AccessFlags.ColorAttachmentWriteBit | AccessFlags.DepthStencilAttachmentWriteBit,
             };
-
-            RenderPassCreateInfo renderPassCreateInfo = new()
-            {
-                SType = StructureType.RenderPassCreateInfo,
-                AttachmentCount = 1,
-                PAttachments = &colorAttachment,
-                SubpassCount = 1,
-                PSubpasses = &subpass,
-                DependencyCount = 1,
-                PDependencies = &dependency,
-            };
-
+            AttachmentDescription[] attachments = { colorAttachment, depthAttachment };
             RenderPass renderPass;
-            if (Vulkan!.CreateRenderPass(Device, &renderPassCreateInfo, null, &renderPass) != Result.Success)
-                throw new Exception("VULKAN: Failed to create a render pass");
+            fixed (AttachmentDescription* attachmentsPtr = attachments){
+                RenderPassCreateInfo renderPassCreateInfo = new()
+                {
+                    SType = StructureType.RenderPassCreateInfo,
+                    AttachmentCount = 2,
+                    PAttachments = attachmentsPtr,
+                    SubpassCount = 1,
+                    PSubpasses = &subpass,
+                    DependencyCount = 1,
+                    PDependencies = &dependency,
+                };
+
+                
+                if (Vulkan!.CreateRenderPass(Device, &renderPassCreateInfo, null, &renderPass) != Result.Success)
+                    throw new Exception("VULKAN: Failed to create a render pass");
+            }
+
+            
 
             return renderPass;
         }
@@ -424,24 +452,26 @@ namespace Xirface
 
             for (int i = 0; i < SwapchainImageViews.Length; i++)
             {
-                ImageView attachment = SwapchainImageViews[i];
-
-                FramebufferCreateInfo framebufferCreateInfo = new()
+                ImageView[] attachments = { SwapchainImageViews[i], depthImageView };
+                fixed (ImageView* attachmentsPtr = attachments)
                 {
-                    SType = StructureType.FramebufferCreateInfo,
-                    RenderPass = RenderPass,
-                    AttachmentCount = 1,
-                    PAttachments = &attachment,
-                    Width = SwapchainExtent.Width,
-                    Height = SwapchainExtent.Height,
-                    Layers = 1
-                };
-
-                fixed (Framebuffer* framebufferPtr = &Framebuffers[i])
-                {
-                    if (Vulkan!.CreateFramebuffer(Device, &framebufferCreateInfo, null, framebufferPtr) != Result.Success)
+                    FramebufferCreateInfo framebufferCreateInfo = new()
                     {
-                        throw new Exception($"VULKAN: Failed to create framebuffer {i}");
+                        SType = StructureType.FramebufferCreateInfo,
+                        RenderPass = RenderPass,
+                        AttachmentCount = 2,
+                        PAttachments = attachmentsPtr,
+                        Width = SwapchainExtent.Width,
+                        Height = SwapchainExtent.Height,
+                        Layers = 1
+                    };
+
+                    fixed (Framebuffer* framebufferPtr = &Framebuffers[i])
+                    {
+                        if (Vulkan!.CreateFramebuffer(Device, &framebufferCreateInfo, null, framebufferPtr) != Result.Success)
+                        {
+                            throw new Exception($"VULKAN: Failed to create framebuffer {i}");
+                        }
                     }
                 }
             }
@@ -515,13 +545,52 @@ namespace Xirface
             return (imageAvailableSemaphores, renderFinishedSemaphores, inFlightFences);
         }
 
-        public unsafe void Begin(out CommandBuffer cmd, out uint imageIndex)
+        public unsafe void RecreateSwapchain(IWindow window)
+        {
+            Vulkan!.DeviceWaitIdle(Device);
+
+
+            foreach (var framebuffer in Framebuffers!)
+                Vulkan.DestroyFramebuffer(Device, framebuffer, null);
+
+            Vulkan.DestroyImage(Device, depthImage, null);
+            Vulkan.DestroyImageView(Device, depthImageView, null);
+            Vulkan.FreeMemory(Device, depthMemory, null);
+
+            foreach (var imageView in SwapchainImageViews!)
+                Vulkan.DestroyImageView(Device, imageView, null);
+
+            KhrSwapchain!.DestroySwapchain(Device, Swapchain, null);
+
+            (SwapchainFormat, SwapchainExtent, Swapchain, SwapchainImages, SwapchainImageViews) = CreateSwapchain(window);
+
+            (depthImage, depthImageView, depthMemory) = CreateDepth();
+
+            Framebuffers = CreateFramebuffers();
+
+        }
+
+        public unsafe bool Begin(out CommandBuffer cmd, out uint imageIndex, IWindow window, ClearColorValue clearColor)
         {
             Vulkan!.WaitForFences(Device, 1, ref InFlightFences![CurrentFrame], true, ulong.MaxValue);
 
             uint index = 0;
-            KhrSwapchain!.AcquireNextImage(Device, Swapchain, ulong.MaxValue,
-                ImageAvailableSemaphores![CurrentFrame], default, &index);
+            Result result = KhrSwapchain!.AcquireNextImage(Device, Swapchain, ulong.MaxValue,ImageAvailableSemaphores![CurrentFrame], default, &index);
+
+            if (result != Result.Success)
+            {
+                if (result == Result.ErrorOutOfDateKhr || result == Result.SuboptimalKhr)
+                {
+                    RecreateSwapchain(window);
+                    cmd = default;
+                    imageIndex = default;
+                    return false;
+                }
+                else
+                {
+                    throw new Exception("VULKAN: Failed to acquire next image");
+                }
+            }
             imageIndex = index;
 
             Vulkan!.ResetFences(Device, 1, ref InFlightFences[CurrentFrame]);
@@ -532,27 +601,35 @@ namespace Xirface
             CommandBufferBeginInfo beginInfo = new() { SType = StructureType.CommandBufferBeginInfo };
             Vulkan!.BeginCommandBuffer(cmd, &beginInfo);
 
-            ClearValue clearValue = new() { Color = new ClearColorValue(1f, 0f, 0f, 1f) };
+            ClearValue[] clearValue = { new() { Color = clearColor}, new() { DepthStencil = new ClearDepthStencilValue(1.0f, 0) } };
 
-            RenderPassBeginInfo renderPassInfo = new()
+            fixed (ClearValue* clearValuePtr = clearValue)
             {
-                SType = StructureType.RenderPassBeginInfo,
-                RenderPass = RenderPass,
-                Framebuffer = Framebuffers[imageIndex],
-                RenderArea = new Rect2D { Offset = new Offset2D(0, 0), Extent = SwapchainExtent },
-                ClearValueCount = 1,
-                PClearValues = &clearValue
-            };
+                RenderPassBeginInfo renderPassInfo = new()
+                {
+                    SType = StructureType.RenderPassBeginInfo,
+                    RenderPass = RenderPass,
+                    Framebuffer = Framebuffers[imageIndex],
+                    RenderArea = new Rect2D { Offset = new Offset2D(0, 0), Extent = SwapchainExtent },
+                    ClearValueCount = 2,
+                    PClearValues = clearValuePtr
+                };
 
-            Vulkan!.CmdBeginRenderPass(cmd, &renderPassInfo, SubpassContents.Inline);
+                Vulkan!.CmdBeginRenderPass(cmd, &renderPassInfo, SubpassContents.Inline);
+            }
+            
+
+            
 
             Viewport viewport = new() { X = 0, Y = 0, Width = SwapchainExtent.Width, Height = SwapchainExtent.Height, MinDepth = 0f, MaxDepth = 1f };
             Rect2D scissor = new() { Offset = new Offset2D(0, 0), Extent = SwapchainExtent };
             Vulkan!.CmdSetViewport(cmd, 0, 1, &viewport);
             Vulkan!.CmdSetScissor(cmd, 0, 1, &scissor);
+
+            return true;
         }
 
-        public unsafe void End(CommandBuffer cmd, uint imageIndex)
+        public unsafe bool End(CommandBuffer cmd, uint imageIndex, IWindow window)
         {
             Vulkan!.CmdEndRenderPass(cmd);
             Vulkan!.EndCommandBuffer(cmd);
@@ -586,8 +663,26 @@ namespace Xirface
                 PImageIndices = &imageIndex
             };
 
-            KhrSwapchain!.QueuePresent(GraphicsQueue, &presentInfo);
+            Result result = KhrSwapchain!.QueuePresent(GraphicsQueue, &presentInfo);
+
+            if (result != Result.Success)
+            {
+                if (result == Result.ErrorOutOfDateKhr || result == Result.SuboptimalKhr)
+                {
+                    RecreateSwapchain(window);
+                    cmd = default;
+                    imageIndex = default;
+                    return false;
+                }
+                else
+                {
+                    throw new Exception("VULKAN: Failed to acquire next image");
+                }
+            }
+
             CurrentFrame = (CurrentFrame + 1) % MaxFramesInFlight;
+
+            return true;
         }
 
         public unsafe CommandBuffer BeginSingleTimeCommands()
@@ -684,6 +779,55 @@ namespace Xirface
             throw new Exception("VULKAN: Failed to find a suitable memory type");
         }
 
+        public unsafe (Image, ImageView, DeviceMemory) CreateDepth()
+        {
+            Image image; ImageView imageView; DeviceMemory memory;
+
+            Format depthFormat = Format.D32Sfloat;
+
+            ImageCreateInfo imageInfo = new()
+            {
+                SType = StructureType.ImageCreateInfo,
+                ImageType = ImageType.Type2D,
+                Extent = new Extent3D(SwapchainExtent.Width, SwapchainExtent.Height, 1),
+                MipLevels = 1,
+                ArrayLayers = 1,
+                Format = depthFormat,
+                Tiling = ImageTiling.Optimal,
+                InitialLayout = ImageLayout.Undefined,
+                Usage = ImageUsageFlags.DepthStencilAttachmentBit,
+                Samples = SampleCountFlags.Count1Bit,
+                SharingMode = SharingMode.Exclusive,
+            };
+
+            Vulkan!.CreateImage(Device, &imageInfo, null, out image);
+
+            Vulkan.GetImageMemoryRequirements(Device, image, out MemoryRequirements memoryRequirements);
+
+            MemoryAllocateInfo allocateInfo = new()
+            {
+                SType = StructureType.MemoryAllocateInfo,
+                AllocationSize = memoryRequirements.Size,
+                MemoryTypeIndex = GetMemoryType(memoryRequirements.MemoryTypeBits, MemoryPropertyFlags.DeviceLocalBit)
+            };
+
+            Vulkan.AllocateMemory(Device, &allocateInfo, null, out memory);
+            Vulkan.BindImageMemory(Device, image, memory, 0);
+
+            ImageViewCreateInfo imageViewInfo = new()
+            {
+                SType = StructureType.ImageViewCreateInfo,
+                Image = image,
+                ViewType = ImageViewType.Type2D,
+                Format = depthFormat,
+                SubresourceRange = new ImageSubresourceRange(ImageAspectFlags.DepthBit, 0, 1, 0, 1)
+            };
+
+            Vulkan.CreateImageView(Device, &imageViewInfo, null, out imageView);
+
+            return (image, imageView, memory);
+
+        }
         public unsafe void Dispose()
         {
             for (int i = 0; i < MaxFramesInFlight; i++)
@@ -705,6 +849,10 @@ namespace Xirface
 
             foreach (var framebuffer in Framebuffers!)
                 Vulkan.DestroyFramebuffer(Device, framebuffer, null);
+
+            Vulkan.DestroyImage(Device, depthImage, null);
+            Vulkan.DestroyImageView(Device, depthImageView, null);
+            Vulkan.FreeMemory(Device, depthMemory, null);
 
             Vulkan.DestroyRenderPass(Device, RenderPass, null);
 

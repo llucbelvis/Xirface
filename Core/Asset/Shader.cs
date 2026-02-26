@@ -1,71 +1,97 @@
 ﻿using Silk.NET.Vulkan;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
 
 namespace Xirface
 {
-    [StructLayout(LayoutKind.Sequential)]
-    struct Transform
+    public unsafe class Shader
     {
-        public Matrix4x4 World;
-        public Matrix4x4 View;
-        public Matrix4x4 Projection;
-    }
-
-
-    public unsafe class Shader 
-    {
-        private Transform transform;
-
-        private Texture2D? texture;
-
         private GraphicsManager graphics;
-
         private ShaderModule vertexModule, fragmentModule;
-
         private DescriptorSetLayout descriptorSetLayout;
         private DescriptorPool descriptorPool;
+        private Type vertexType;
 
-        public DescriptorSet DescriptorSet;
         public Pipeline Pipeline;
         public PipelineLayout PipelineLayout;
 
-
-        private Buffer transformBuffer;
-        private DeviceMemory transformMemory;
-        private void* transformMapped;
-
-        public Shader(GraphicsManager graphics, string vertexPath, string fragmentPath, Type vertexType)
+        public Shader(GraphicsManager graphics)
         {
             this.graphics = graphics;
+        }
 
-            transform = new();
+        public void Buffer(string vertexPath, string fragmentPath, Type vertexType)
+        {
+            this.vertexType = vertexType;
+
             vertexModule = CreateShaderModule(vertexPath);
             fragmentModule = CreateShaderModule(fragmentPath);
 
-            descriptorSetLayout = CreateDescriptorSetLayout();
+            descriptorSetLayout = CreateDescriptorSetLayout(vertexType);
             PipelineLayout = CreatePipelineLayout();
             Pipeline = CreatePipeline(vertexType);
 
-            CreateUniformBuffers();
+            descriptorPool = CreateDescriptorPool(vertexType);
+        }
+        public void CreateUniformBuffer(out Buffer buffer, out DeviceMemory memory, out void* mapped)
+        {
+            graphics.CreateBuffer(
+                (ulong)sizeof(Transform),
+                BufferUsageFlags.UniformBufferBit,
+                MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
+                out buffer,
+                out memory
+            );
 
-            descriptorPool = CreateDescriptorPool();
-            DescriptorSet = CreateDescriptorSet();
-
-            SetTexture(new Texture2D(graphics, "textures\\trains.png"));
+            void* m;
+            graphics.Vulkan!.MapMemory(graphics.Device, memory, 0, (ulong)sizeof(Transform), 0, &m);
+            mapped = m;
         }
 
-        public void SetView(Matrix4x4 value) { transform.View = value; UpdateTransform(); }
-        public void SetWorld(Matrix4x4 value) { transform.World = value; UpdateTransform(); }
-        public void SetProjection(Matrix4x4 value) { transform.Projection = value; UpdateTransform(); }
-
-        public unsafe void SetTexture(Texture2D texture)
+        public DescriptorSet AllocateDescriptorSet(Buffer uniformBuffer)
         {
-            this.texture = texture;
+            DescriptorSet descriptorSet;
+
+            fixed (DescriptorSetLayout* layoutPtr = &descriptorSetLayout)
+            {
+                DescriptorSetAllocateInfo allocInfo = new()
+                {
+                    SType = StructureType.DescriptorSetAllocateInfo,
+                    DescriptorPool = descriptorPool,
+                    DescriptorSetCount = 1,
+                    PSetLayouts = layoutPtr,
+                };
+
+                if (graphics.Vulkan!.AllocateDescriptorSets(graphics.Device, &allocInfo, &descriptorSet) != Result.Success)
+                    throw new Exception("VULKAN: Failed to allocate a descriptor set");
+            }
+
+            DescriptorBufferInfo bufferInfo = new()
+            {
+                Buffer = uniformBuffer,
+                Offset = 0,
+                Range = (ulong)sizeof(Transform),
+            };
+
+            WriteDescriptorSet write = new()
+            {
+                SType = StructureType.WriteDescriptorSet,
+                DstSet = descriptorSet,
+                DstBinding = 0,
+                DstArrayElement = 0,
+                DescriptorType = DescriptorType.UniformBuffer,
+                DescriptorCount = 1,
+                PBufferInfo = &bufferInfo,
+            };
+
+            graphics.Vulkan.UpdateDescriptorSets(graphics.Device, 1, &write, 0, null);
+
+            return descriptorSet;
+        }
+
+        public void SetTexture(DescriptorSet descriptorSet, Texture2D texture)
+        {
+            graphics.Vulkan.DeviceWaitIdle(graphics.Device);
 
             DescriptorImageInfo imageInfo = new()
             {
@@ -77,7 +103,7 @@ namespace Xirface
             WriteDescriptorSet write = new()
             {
                 SType = StructureType.WriteDescriptorSet,
-                DstSet = DescriptorSet,
+                DstSet = descriptorSet,
                 DstBinding = 1,
                 DstArrayElement = 0,
                 DescriptorType = DescriptorType.CombinedImageSampler,
@@ -88,17 +114,14 @@ namespace Xirface
             graphics.Vulkan.UpdateDescriptorSets(graphics.Device, 1, &write, 0, null);
         }
 
-        public unsafe void Apply(CommandBuffer cmd)
+        public void Apply(CommandBuffer cmd, DescriptorSet descriptorSet)
         {
             graphics.Vulkan.CmdBindPipeline(cmd, PipelineBindPoint.Graphics, Pipeline);
 
-            fixed (DescriptorSet* setPtr = &DescriptorSet)
-            {
-                graphics.Vulkan.CmdBindDescriptorSets(cmd, PipelineBindPoint.Graphics, PipelineLayout, 0, 1, setPtr, 0, null);
-            }
+            graphics.Vulkan.CmdBindDescriptorSets(cmd, PipelineBindPoint.Graphics, PipelineLayout, 0, 1, &descriptorSet, 0, null);
         }
 
-        private unsafe ShaderModule CreateShaderModule(string path)
+        private ShaderModule CreateShaderModule(string path)
         {
             byte[] spv = File.ReadAllBytes(path);
             ShaderModuleCreateInfo createInfo = new()
@@ -111,30 +134,14 @@ namespace Xirface
             {
                 createInfo.PCode = (uint*)spvPtr;
                 if (graphics.Vulkan.CreateShaderModule(graphics.Device, &createInfo, null, &module) != Result.Success)
-                {
                     throw new Exception($"Vulkan failed to create a shader module from {path}");
-                }
-
             }
             return module;
         }
 
-        private unsafe void UpdateTransform()
-        {
-            Transform transform = new()
-            {
-                View = this.transform.View,
-                World = this.transform.World,
-                Projection = this.transform.Projection,
-            };
-
-            System.Buffer.MemoryCopy(&transform, transformMapped, sizeof(Transform), sizeof(Transform));
-        }
-
-        private DescriptorSetLayout CreateDescriptorSetLayout()
+        private DescriptorSetLayout CreateDescriptorSetLayout(Type vertexType)
         {
             DescriptorSetLayout descriptorSetLayout;
-
             DescriptorSetLayoutBinding[] bindings = new DescriptorSetLayoutBinding[2];
 
             bindings[0] = new DescriptorSetLayoutBinding
@@ -145,18 +152,20 @@ namespace Xirface
                 StageFlags = ShaderStageFlags.VertexBit,
             };
 
-            bindings[1] = (new DescriptorSetLayoutBinding
+            if (vertexType == typeof(VertexPositionColorTexture))
             {
-                Binding = 1,
-                DescriptorType = DescriptorType.CombinedImageSampler,
-                DescriptorCount = 1,
-                StageFlags = ShaderStageFlags.FragmentBit
-            });
-
+                bindings[1] = new DescriptorSetLayoutBinding
+                {
+                    Binding = 1,
+                    DescriptorType = DescriptorType.CombinedImageSampler,
+                    DescriptorCount = 1,
+                    StageFlags = ShaderStageFlags.FragmentBit,
+                };
+            }
 
             fixed (DescriptorSetLayoutBinding* bindingsPtr = bindings)
             {
-                uint bindingCount = 2;
+                uint bindingCount = vertexType != typeof(VertexPositionColorTexture) ? 1u : 2u;
 
                 DescriptorSetLayoutCreateInfo layoutCreateInfo = new()
                 {
@@ -172,9 +181,16 @@ namespace Xirface
             return descriptorSetLayout;
         }
 
-        private unsafe PipelineLayout CreatePipelineLayout()
+        private PipelineLayout CreatePipelineLayout()
         {
             PipelineLayout pipelineLayout;
+
+            PushConstantRange pushConstantRange = new()
+            {
+                StageFlags = ShaderStageFlags.VertexBit,
+                Offset = 0,
+                Size = (uint)sizeof(Matrix4x4)
+            };
 
             fixed (DescriptorSetLayout* layoutPtr = &descriptorSetLayout)
             {
@@ -182,7 +198,9 @@ namespace Xirface
                 {
                     SType = StructureType.PipelineLayoutCreateInfo,
                     SetLayoutCount = 1,
-                    PSetLayouts = layoutPtr
+                    PSetLayouts = layoutPtr,
+                    PushConstantRangeCount = 1,
+                    PPushConstantRanges = &pushConstantRange
                 };
 
                 if (graphics.Vulkan!.CreatePipelineLayout(graphics.Device, &pipelineLayoutCreateInfo, null, &pipelineLayout) != Result.Success)
@@ -192,7 +210,7 @@ namespace Xirface
             return pipelineLayout;
         }
 
-        private unsafe Pipeline CreatePipeline(Type vertexType)
+        private Pipeline CreatePipeline(Type vertexType)
         {
             Pipeline pipeline;
 
@@ -296,6 +314,16 @@ namespace Xirface
                         PAttachments = &colorBlendAttachment,
                     };
 
+                    PipelineDepthStencilStateCreateInfo depthStencil = new()
+                    {
+                        SType = StructureType.PipelineDepthStencilStateCreateInfo,
+                        DepthTestEnable = false,
+                        DepthWriteEnable = false,
+                        DepthCompareOp = CompareOp.Less,
+                        DepthBoundsTestEnable = false,
+                        StencilTestEnable = false,
+                    };
+
                     fixed (PipelineShaderStageCreateInfo* stagesPtr = stages)
                     {
                         GraphicsPipelineCreateInfo pipelineCreateInfo = new()
@@ -309,6 +337,7 @@ namespace Xirface
                             PRasterizationState = &rasterizer,
                             PMultisampleState = &multisampling,
                             PColorBlendState = &colorBlending,
+                            PDepthStencilState = &depthStencil,
                             PDynamicState = &dynamicState,
                             Layout = PipelineLayout,
                             RenderPass = graphics.RenderPass,
@@ -318,35 +347,16 @@ namespace Xirface
                         if (graphics.Vulkan!.CreateGraphicsPipelines(graphics.Device, default, 1, &pipelineCreateInfo, null, &pipeline) != Result.Success)
                             throw new Exception("VULKAN: Failed to create a graphics pipeline");
                     }
-
-
                 }
-
             }
 
-            graphics!.Vulkan.DestroyShaderModule(graphics.Device, vertexModule, null);
+            graphics.Vulkan.DestroyShaderModule(graphics.Device, vertexModule, null);
             graphics.Vulkan.DestroyShaderModule(graphics.Device, fragmentModule, null);
 
             return pipeline;
         }
 
-
-        private unsafe void CreateUniformBuffers()
-        {
-            graphics.CreateBuffer(
-                (ulong)sizeof(Transform),
-                BufferUsageFlags.UniformBufferBit, MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit,
-                out transformBuffer,
-                out transformMemory
-            );
-
-            void* mapped;
-
-            graphics.Vulkan!.MapMemory(graphics.Device, transformMemory, 0, (ulong)sizeof(Transform), 0, &mapped);
-            transformMapped = mapped;
-        }
-
-        private unsafe DescriptorPool CreateDescriptorPool()
+        private DescriptorPool CreateDescriptorPool(Type vertexType)
         {
             DescriptorPoolSize[] poolSizes = new DescriptorPoolSize[2];
             DescriptorPool descriptorPool;
@@ -354,85 +364,39 @@ namespace Xirface
             poolSizes[0] = new DescriptorPoolSize()
             {
                 Type = DescriptorType.UniformBuffer,
-                DescriptorCount = 1,
+                DescriptorCount = 100,
             };
 
-            poolSizes[1] = new DescriptorPoolSize()
+            if (vertexType == typeof(VertexPositionColorTexture))
             {
-                Type = DescriptorType.CombinedImageSampler,
-                DescriptorCount = 1,
-            };
-
+                poolSizes[1] = new DescriptorPoolSize()
+                {
+                    Type = DescriptorType.CombinedImageSampler,
+                    DescriptorCount = 100,
+                };
+            }
 
             fixed (DescriptorPoolSize* poolSizePtr = poolSizes)
             {
-                uint poolSizeCount = 2;
+                uint poolSizeCount = vertexType != typeof(VertexPositionColorTexture) ? 1u : 2u;
 
                 DescriptorPoolCreateInfo poolCreateInfo = new()
                 {
                     SType = StructureType.DescriptorPoolCreateInfo,
                     PoolSizeCount = poolSizeCount,
                     PPoolSizes = poolSizePtr,
-                    MaxSets = 1,
+                    MaxSets = 100,
                 };
 
                 if (graphics.Vulkan!.CreateDescriptorPool(graphics.Device, &poolCreateInfo, null, &descriptorPool) != Result.Success)
-                {
                     throw new Exception("VULKAN: Failed to create a descriptor pool");
-                }
             }
 
             return descriptorPool;
         }
 
-        private unsafe DescriptorSet CreateDescriptorSet()
+        public void Dispose()
         {
-            DescriptorSet descriptorSet;
-
-            fixed (DescriptorSetLayout* layoutPtr = &descriptorSetLayout)
-            {
-                DescriptorSetAllocateInfo allocInfo = new()
-                {
-                    SType = StructureType.DescriptorSetAllocateInfo,
-                    DescriptorPool = descriptorPool,
-                    DescriptorSetCount = 1,
-                    PSetLayouts = layoutPtr,
-                };
-
-                if (graphics.Vulkan!.AllocateDescriptorSets(graphics.Device, &allocInfo, &descriptorSet) != Result.Success)
-                    throw new Exception("VULKAN: Failed to allocate a descritor set");
-
-            }
-
-            DescriptorBufferInfo transformBufferInfo = new()
-            {
-                Buffer = transformBuffer,
-                Offset = 0,
-                Range = (ulong)sizeof(Transform),
-            };
-
-            WriteDescriptorSet transformWrite = new()
-            {
-                SType = StructureType.WriteDescriptorSet,
-                DstSet = descriptorSet,
-                DstBinding = 0,
-                DstArrayElement = 0,
-                DescriptorType = DescriptorType.UniformBuffer,
-                DescriptorCount = 1,
-                PBufferInfo = &transformBufferInfo,
-            };
-
-            graphics.Vulkan.UpdateDescriptorSets(graphics.Device, 1, &transformWrite, 0, null);
-
-            return descriptorSet;
-        }
-
-        public unsafe void Dispose()
-        {
-            graphics.Vulkan!.UnmapMemory(graphics.Device, transformMemory);
-            graphics.Vulkan.DestroyBuffer(graphics.Device, transformBuffer, null);
-            graphics.Vulkan.FreeMemory(graphics.Device, transformMemory, null);
-
             graphics.Vulkan.DestroyDescriptorPool(graphics.Device, descriptorPool, null);
             graphics.Vulkan.DestroyDescriptorSetLayout(graphics.Device, descriptorSetLayout, null);
             graphics.Vulkan.DestroyPipeline(graphics.Device, Pipeline, null);

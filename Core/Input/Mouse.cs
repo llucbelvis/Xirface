@@ -1,9 +1,4 @@
 ﻿using Silk.NET.Input;
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Diagnostics;
-using System.Linq;
 using System.Numerics;
 
 namespace Xirface
@@ -27,7 +22,7 @@ namespace Xirface
         public void Update()
         {
             previous = current;
-
+            current = new HashSet<MouseButton>();
             foreach (MouseButton button in Enum.GetValues<MouseButton>())
             {
                 if (IMouse.IsButtonPressed(button)) current!.Add(button);

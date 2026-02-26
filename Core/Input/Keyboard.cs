@@ -1,12 +1,4 @@
-﻿
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Reflection.Metadata.Ecma335;
-using System.Xml.Linq;
-
-using Silk.NET.Input;
+﻿using Silk.NET.Input;
 
 namespace Xirface
 {
@@ -20,12 +12,14 @@ namespace Xirface
         public Keyboard(IKeyboard keyboard)
         {
             IKeyboard = keyboard;
+
+            current = new();
         }
 
         public void Update()
         {
             previous = current;
-
+            current = new HashSet<Key>();
             foreach (Key key in Enum.GetValues<Key>())
             {
                 if (IKeyboard.IsKeyPressed(key)) current!.Add(key);
