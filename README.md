@@ -13,7 +13,7 @@ dotnet add package Xirface --version 0.1.0
 protected override void Load()     
 ```
 ```csharp
-protected override void Load(double delta)
+protected override void Update(double delta)
 ```
 ```csharp
 protected override void Draw(double delta, CommandBuffer cmd, uint imageIndex)
