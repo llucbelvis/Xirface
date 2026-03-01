@@ -50,7 +50,7 @@ namespace Xirface
         private DeviceBuffer deviceBuffer;
 
         protected DescriptorSet descriptorSet;
-        public unsafe Entity(Shader shader, GraphicsManager graphics, Vector2 position, Vector2 origin)
+        public unsafe Entity(GraphicsManager graphics, Shader shader, Vector2 position, Vector2 origin)
         {
             this.Shader = shader;
             this.Origin = origin;

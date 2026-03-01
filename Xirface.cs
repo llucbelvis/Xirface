@@ -3,8 +3,6 @@ using Silk.NET.Maths;
 using Silk.NET.Vulkan;
 using Silk.NET.Windowing;
 
-
-
 namespace Xirface
 {
     public abstract class Xirface
